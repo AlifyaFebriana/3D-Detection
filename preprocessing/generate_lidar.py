@@ -2,7 +2,8 @@ import argparse
 import os
 
 import numpy as np
-import scipy.misc as ssc
+#import scipy.misc as ssc
+import imageio
 
 import kitti_util
 
@@ -22,15 +23,32 @@ def project_disp_to_points(calib, disp, max_high):
     valid = (cloud[:, 0] >= 0) & (cloud[:, 2] < max_high)
     return cloud[valid]
 
-def project_depth_to_points(calib, depth, max_high):
+def project_depth_to_points(calib, depth, max_high=1):
+    depth = depth.astype(np.float32)
     rows, cols = depth.shape
-    c, r = np.meshgrid(np.arange(cols), np.arange(rows))
-    points = np.stack([c, r, depth])
-    points = points.reshape((3, -1))
-    points = points.T
-    cloud = calib.project_image_to_velo(points)
-    valid = (cloud[:, 0] >= 0) & (cloud[:, 2] < max_high)
-    return cloud[valid]
+    c, r = np.meshgrid(np.arange(cols), np.arange(rows), sparse=True)
+    points = np.zeros((rows, cols, 3))
+
+    # Calculate x and y coordinates
+    points[..., 0] = (c - calib.c_u) * depth / calib.f_u
+    points[..., 1] = (r - calib.c_v) * depth / calib.f_v
+    points[..., 2] = depth
+
+    # Apply the R0_rect transformation
+    points_rect = np.dot(points.reshape(-1, 3), calib.R0.T)
+
+    # Filter points based on the maximum height
+    valid_inds = points_rect[:, 2] <= max_high
+    points_rect = points_rect[valid_inds]
+
+    return points_rect
+    
+    #points = np.stack([c, r, depth])
+    #points = points.reshape((3, -1))
+    #points = points.T
+    #cloud = calib.project_image_to_velo(points)
+    #valid = (cloud[:, 0] >= 0) & (cloud[:, 2] < max_high)
+    #return cloud[valid]
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Generate Libar')
@@ -60,7 +78,7 @@ if __name__ == '__main__':
         calib = kitti_util.Calibration(calib_file)
         # disp_map = ssc.imread(args.disparity_dir + '/' + fn) / 256.
         if fn[-3:] == 'png':
-            disp_map = ssc.imread(args.disparity_dir + '/' + fn)
+            disp_map = imageio.imread(args.disparity_dir + '/' + fn, mode='L')
         elif fn[-3:] == 'npy':
             disp_map = np.load(args.disparity_dir + '/' + fn)
         else:
