@@ -45,12 +45,12 @@ class Calibration(object):
 
         calibs = self.read_calib_file(calib_filepath)
         # Projection matrix from rect camera coord to image2 coord
-        self.P = calibs['P2']
+        self.P = calibs['P0']
         self.P = np.reshape(self.P, [3, 4])
         # Rigid transform from Velodyne coord to reference camera coord
-        self.V2C = calibs['Tr_velo_to_cam']
-        self.V2C = np.reshape(self.V2C, [3, 4])
-        self.C2V = inverse_rigid_trans(self.V2C)
+        #self.V2C = calibs['Tr_velo_to_cam']
+        #self.V2C = np.reshape(self.V2C, [3, 4])
+        #self.C2V = inverse_rigid_trans(self.V2C)
         # Rotation from reference camera coord to rect camera coord
         self.R0 = calibs['R0_rect']
         self.R0 = np.reshape(self.R0, [3, 3])
